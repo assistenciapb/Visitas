@@ -141,6 +141,7 @@ function createCard(visita, id){
       <button class="print-btn">Imprimir</button>
     `;
 
+    // Atualização de status
     modalButtons.querySelector('.status-btn').onclick = () => {
       if(visita.status==='Agendada'){
         currentStatusId=id;
@@ -157,6 +158,7 @@ function createCard(visita, id){
       }
     };
 
+    // Excluir visita
     modalButtons.querySelector('.delete-btn').onclick = async () => {
       if(!confirm('Deseja realmente excluir esta visita?')) return;
       await deleteDoc(doc(db,'visitas',id));
@@ -164,6 +166,7 @@ function createCard(visita, id){
       loadVisitas();
     };
 
+    // Editar visita
     modalButtons.querySelector('.edit-btn').onclick = () => {
       editingId=id;
       Object.keys(visitaForm.elements).forEach(key => {
@@ -173,38 +176,99 @@ function createCard(visita, id){
       scrollToSection('agendamento');
     };
 
-    modalButtons.querySelector('.print-btn').onclick = () => {
-      const { jsPDF } = window.jspdf;
-      const docPDF = new jsPDF();
-      let y=20;
-      docPDF.setFontSize(18); docPDF.setFont("helvetica","bold");
-      docPDF.text("Visita Agendada",105,y,{align:"center"}); y+=12;
-      docPDF.setLineWidth(0.5); docPDF.line(18,y,192,y); y+=10;
-      docPDF.setFontSize(12);
-      const campos=[
-        ["Nome:", visita.nome],
-        ["Data de Nascimento:", visita.nascimento],
-        ["CPF:", visita.cpf],
-        ["Endereço:", `${visita.rua}, ${visita.bairro}`],
-        ["Ponto de referência:", visita.referencia||"-"],
-        ["Motivo:", visita.motivo||"-"],
-        ["Dificuldades:", visita.dificuldades||"-"],
-        ["Observações:", visita.observacoes||"-"],
-        ["Responsável:", visita.responsavel||"-"],
-        ["Data/Hora do agendamento:", `${visita.dataAgendamento} ${visita.horaAgendamento}`],
-        ["Status:", visita.status||"Agendada"],
-        ["Responsável pela visita:", visita.responsavelVisita||"-"],
-        ["Data de realização:", visita.dataRealizacao||"-"],
-        ["Parecer da visita:", visita.parecerVisita||"-"]
-      ];
-      campos.forEach(([t,v])=>{
-        docPDF.setFont("helvetica","bold"); docPDF.text(t,20,y);
-        docPDF.setFont("helvetica","normal"); docPDF.text(String(v),70,y);
-        y+=8;
-        if(y>270){ docPDF.addPage(); y=20; }
-      });
-      docPDF.save(`${sanitizeFilename(visita.nome)}-visita.pdf`);
-    };
+    // Impressão Profissional: Formulário de Encaminhamento
+modalButtons.querySelector('.print-btn').onclick = () => {
+  const { jsPDF } = window.jspdf;
+  const docPDF = new jsPDF('p','mm','a4');
+  const pageWidth = docPDF.internal.pageSize.getWidth();
+  const margin = { left: 20, right: 20, top: 20 };
+  let y = margin.top;
+
+  // Cabeçalho
+  docPDF.setFont("helvetica","bold");
+  docPDF.setFontSize(16);
+  docPDF.text("FORMULÁRIO DE ENCAMINHAMENTO", pageWidth/2, y, { align: "center" });
+  y += 15;
+
+  docPDF.setFont("helvetica","normal");
+  docPDF.setFontSize(12);
+  const lineHeight = 8;
+
+  // Cabeçalho inicial com linhas
+  docPDF.text("Encaminhamos o Sr.(a):", margin.left, y);
+  docPDF.text(visita.nome || "______________________________", margin.left + 60, y);
+  y += lineHeight;
+
+  // Data de nascimento e CPF na mesma linha
+  docPDF.text("Data de Nascimento:", margin.left, y);
+  docPDF.text(visita.nascimento || "____/____/____", margin.left + 45, y);
+  docPDF.text("CPF:", margin.left + 100, y);
+  docPDF.text(visita.cpf || "________________", margin.left + 115, y);
+  y += lineHeight;
+
+  docPDF.text("Endereço:", margin.left, y);
+  docPDF.text(visita.rua || "______________________________", margin.left + 35, y);
+  docPDF.text("Bairro:", margin.left + 110, y);
+  docPDF.text(visita.bairro || "________________", margin.left + 125, y);
+  y += lineHeight;
+
+  docPDF.text("Ponto de Referência:", margin.left, y);
+  docPDF.text(visita.referencia || "______________________________", margin.left + 55, y);
+  y += lineHeight + 5;
+
+  // Tabela de informações detalhadas
+  const tableFields = [
+    ["Motivo da Visita", visita.motivo],
+    ["Dificuldades Apresentadas", visita.dificuldades],
+    ["Observações", visita.observacoes],
+    [" Agendamento", visita.responsavel],
+    ["Data do Agendamento", visita.dataAgendamento],
+    ["Status Atual da Visita", visita.status],
+    ["Responsável pela Visita", visita.responsavelVisita],
+    ["Data da Realização da Visita", visita.dataRealizacao],
+    ["Parecer da Visita", visita.parecerVisita]
+  ];
+
+  const labelWidth = 60;
+  const valueWidth = pageWidth - margin.left - margin.right - labelWidth;
+  const cellPadding = 2;
+
+  docPDF.setFont("helvetica","bold");
+  tableFields.forEach(([label, value]) => {
+    const textLines = docPDF.splitTextToSize(value || "______________________________", valueWidth - 2*cellPadding);
+    const cellHeight = Math.max(10, textLines.length * lineHeight);
+
+    if(y + cellHeight > docPDF.internal.pageSize.getHeight() - margin.top){
+      docPDF.addPage();
+      y = margin.top;
+    }
+
+    docPDF.rect(margin.left, y, labelWidth, cellHeight);
+    docPDF.rect(margin.left + labelWidth, y, valueWidth, cellHeight);
+
+    docPDF.text(label, margin.left + cellPadding, y + 7);
+    docPDF.setFont("helvetica","normal");
+    docPDF.text(textLines, margin.left + labelWidth + cellPadding, y + 7);
+    docPDF.setFont("helvetica","bold");
+
+    y += cellHeight;
+  });
+
+  y += 10;
+
+  // Mensagem padronizada centralizada
+  docPDF.setFont("helvetica","normal");
+  docPDF.setFontSize(12);
+  docPDF.text("Secretaria Municipal de Assistência Social - SEMAS", pageWidth/2, y, { align: "center" });
+  y += 6;
+  docPDF.text("Avenida Domingos Sertão S/N", pageWidth/2, y, { align: "center" });
+  y += 6;
+  docPDF.text("Pastos Bons - MA", pageWidth/2, y, { align: "center" });
+
+  docPDF.save(`${sanitizeFilename(visita.nome)}-formulario-encaminhamento.pdf`);
+};
+
+
 
     modal.classList.add('show');
   });
@@ -306,3 +370,4 @@ function sanitizeFilename(name){ return (name||'visita').replace(/[^a-z0-9_\-]/g
 
 // Inicializar
 loadVisitas();
+sa
