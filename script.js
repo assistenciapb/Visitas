@@ -19,20 +19,6 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth();
 
-// Envia os dados da visita para sua planilha via Apps Script
-async function enviarParaPlanilha(data) {
-  try {
-    await fetch('https://script.google.com/macros/s/AKfycbwnlc2B7-qyGV7gtS3tbMTJNkCxbuHoctdeHJJd_G_cXdXXz9fHS8UE6zDKaqspP4YNow/exec', {
-      method: 'POST',
-      body: JSON.stringify(data),
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch (err) {
-    console.error('Erro ao enviar para a planilha:', err);
-  }
-}
-
-
 // DOM Elements
 const visitaForm = document.getElementById('visitaForm');
 const visitasContainer = document.getElementById('visitasContainer');
@@ -138,29 +124,19 @@ visitaForm.addEventListener('submit', async e => {
   };
 
   try {
-  if(editingId){
-    await updateDoc(doc(db,'visitas',editingId), data);
-    editingId = null;
-  } else {
-    await addDoc(collection(db,'visitas'), data);
+    if(editingId){
+      await updateDoc(doc(db,'visitas',editingId), data);
+      editingId = null;
+    } else {
+      await addDoc(collection(db,'visitas'), data);
+    }
+    visitaForm.reset();
+    loadVisitas();
+    scrollToSection('visitas');
+  } catch(err){
+    console.error('Erro ao salvar visita:', err);
+    alert('Erro ao salvar. Veja console.');
   }
-
-  // 🔹 Enviar para Google Sheets também
-  await fetch("https://script.google.com/macros/s/AKfycbwgSlHjcSAypHswVY-1NN63VzI6xoxX15_fWGrc2eVglPVS4AWOjxLHaRa_ilRvRC1U-A/exec", {
-    method: "POST",
-    body: JSON.stringify(data),
-    headers: { "Content-Type": "application/json" }
-  });
-
-  visitaForm.reset();
-  loadVisitas();
-  scrollToSection('visitas');
-} catch(err){
-  console.error('Erro ao salvar visita:', err);
-  alert('Erro ao salvar. Veja console.');
-}
-
-
 });
 
 // ----------------------
@@ -488,7 +464,5 @@ if(logoutBtn){
     signOut(auth).then(() => window.location.href='login.html');
   });
 }
-
-
 
 
