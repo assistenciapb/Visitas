@@ -39,7 +39,6 @@ section h2 {
   padding:0 10px;
 }
 .dashboard-card {
-  background: #2e5a86;
   background: linear-gradient(135deg,#2e5a86,#214563);
   padding: 18px;
   border-radius: 12px;
@@ -72,6 +71,20 @@ section h2 {
 .busca-filtros {
   display:flex; gap:12px; align-items:center; justify-content:flex-start; margin-bottom:18px; flex-wrap:wrap; max-width:1100px; margin-left:auto; margin-right:auto;
 }
+#searchInput {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #cfd8e3;
+  font-size: 14px;
+  flex: 1;
+  min-width: 200px;
+}
+#searchInput:focus {
+  outline: none;
+  border-color: #2e5a86;
+  box-shadow: 0 0 5px rgba(46,90,134,0.5);
+}
+
 .ordenar-btn {
   padding:10px 12px; border:none; border-radius:8px; background:#2e5a86; color:#fff; font-weight:700; cursor:pointer;
   transition:0.2s; flex-shrink:0;
@@ -83,7 +96,7 @@ section h2 {
 .ordenar-menu div { padding:8px 12px; cursor:pointer; }
 .ordenar-menu div:hover { background:#eef3fb; }
 
-.filter-buttons { display:flex; gap:6px; width:100%; justify-content:space-between; max-width:600px; margin-left:auto; margin-right:auto; }
+.filter-buttons { display:flex; gap:6px; width:100%; justify-content:space-between; max-width:600px; margin-left:auto; margin-right:auto; flex-wrap:wrap; }
 .bairro-btn { flex:1; padding:10px; border:none; border-radius:8px; background:#2e5a86; color:#fff; font-weight:700; cursor:pointer; transition:0.2s; }
 .bairro-btn:hover { background:#214563; }
 
