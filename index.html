@@ -1,136 +1,23 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Agendamento de Visitas</title>
-
-  <!-- CSS -->
-  <link rel="stylesheet" href="style.css">
-
-  <!-- Font Awesome (CDN) -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-  <!-- jsPDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Agendamento de Visitas</title>
+  <link rel="stylesheet" href="login.css">
+  <script type="module" src="login.js"></script>
 </head>
 <body>
-
-  <!-- Barra fixa -->
-  <header>
-    <button onclick="scrollToSection('dashboard')"><i class="fas fa-chart-bar"></i> Dashboard</button>
-    <button onclick="scrollToSection('agendamento')"><i class="fas fa-calendar-plus"></i> Agendar Visita</button>
-    <button onclick="scrollToSection('visitas')"><i class="fas fa-list"></i> Visitas Agendadas</button>
-  </header>
-
-  <!-- Seção Dashboard -->
-  <section id="dashboard">
-    <h2>Dashboard de Visitas</h2>
-    <div class="dashboard-cards">
-      <div class="dashboard-card">
-        <p class="card-title">Visitas Agendadas</p>
-        <p class="card-value" id="totalAgendadas">0</p>
-      </div>
-      <div class="dashboard-card">
-        <p class="card-title">Visitas Realizadas</p>
-        <p class="card-value" id="totalRealizadas">0</p>
-      </div>
-      <div class="dashboard-card bairro-card">
-        <p class="card-title">Santa Maria</p>
-        <p class="card-value" id="bairroSantaMariaAgendadas">0 Agendadas</p>
-        <p class="card-value" id="bairroSantaMariaRealizadas">0 Realizadas</p>
-      </div>
-      <div class="dashboard-card bairro-card">
-        <p class="card-title">Zona Rural</p>
-        <p class="card-value" id="bairroZonaRuralAgendadas">0 Agendadas</p>
-        <p class="card-value" id="bairroZonaRuralRealizadas">0 Realizadas</p>
-      </div>
-      <div class="dashboard-card bairro-card">
-        <p class="card-title">Poeirão</p>
-        <p class="card-value" id="bairroPoeiraoAgendadas">0 Agendadas</p>
-        <p class="card-value" id="bairroPoeiraoRealizadas">0 Realizadas</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Seção Agendamento -->
-  <section id="agendamento">
-    <h2>Agendar Visita</h2>
-    <form id="visitaForm">
-      <input type="text" name="nome" placeholder="Nome completo" required />
-      <input type="text" name="nascimento" placeholder="Data de Nascimento (dd/mm/aaaa)" required id="nascimentoInput" />
-      <input type="text" name="cpf" placeholder="CPF" required />
-      <input type="text" name="rua" placeholder="Rua" required />
-      <select name="bairro" required>
-        <option value="">Selecione o bairro</option>
-        <option value="Zona Rural">Zona Rural</option>
-        <option value="Santa Maria">Santa Maria</option>
-        <option value="Poeirão">Poeirão</option>
-      </select>
-      <input type="text" name="referencia" placeholder="Ponto de referência" />
-      <input type="text" name="motivo" placeholder="Motivo da visita" required />
-      <input type="text" name="dificuldades" placeholder="Dificuldades apresentadas" />
-      <textarea name="observacoes" placeholder="Observações"></textarea>
-      <input type="text" name="responsavel" placeholder="Responsável pelo agendamento" required />
-      <div style="text-align:center;">
-        <button type="submit"><i class="fas fa-check-circle"></i> Confirmar Agendamento</button>
-      </div>
+  <div class="login-container">
+    <h2>Login</h2>
+    <form id="loginForm">
+      <input type="email" id="loginEmail" placeholder="Email" required>
+      <input type="password" id="loginSenha" placeholder="Senha" required>
+      <button type="submit">Entrar</button>
+      <p id="loginError" class="error-msg"></p>
     </form>
-  </section>
-
-  <!-- Seção Visitas -->
-  <section id="visitas">
-    <h2>Visitas Agendadas</h2>
-
-    <div class="busca-filtros">
-      <button id="ordenarBtn" class="ordenar-btn">Ordenar</button>
-      <div id="ordenarMenu" class="ordenar-menu">
-        <div data-sort="agendadas-recentes">Agendadas mais recentes</div>
-        <div data-sort="agendadas-antigas">Agendadas mais antigas</div>
-        <div data-sort="realizadas-recentes">Realizadas mais recentes</div>
-        <div data-sort="realizadas-antigas">Realizadas mais antigas</div>
-        <div data-sort="alfabetica">Ordem alfabética</div>
-      </div>
-
-      <div class="filter-buttons">
-        <button class="bairro-btn" data-bairro="Santa Maria">Santa Maria</button>
-        <button class="bairro-btn" data-bairro="Zona Rural">Zona Rural</button>
-        <button class="bairro-btn" data-bairro="Poeirão">Poeirão</button>
-        <button class="bairro-btn" data-bairro="">Todos</button>
-      </div>
-    </div>
-
-    <div id="visitasContainer"></div>
-  </section>
-
-  <!-- Modal -->
-  <div id="modal">
-    <div id="modalContent" class="modal-content">
-      <span id="closeModal">&times;</span>
-      <div id="modalBody"></div>
-      <div id="modalButtons"></div>
-    </div>
   </div>
-
-  <!-- Modal de status -->
-  <div id="statusModal">
-    <div id="statusModalContent">
-      <span id="closeStatusModal">&times;</span>
-      <h3>Marcar Visita como Realizada</h3>
-      <form id="statusForm">
-        <label>Responsável pela visita:</label>
-        <input type="text" id="responsavelVisitaInput" required placeholder="Informe o responsável">
-        <label>Parecer da visita (opcional):</label>
-        <textarea id="parecerVisitaInput" placeholder="Digite um breve parecer"></textarea>
-        <div style="display:flex; gap:10px; justify-content:center; margin-top:12px;">
-          <button type="submit" class="status-btn">Confirmar</button>
-          <button type="button" id="cancelStatusBtn" class="delete-btn">Cancelar</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Firebase + App script -->
-  <script type="module" src="script.js"></script>
 </body>
 </html>
+
+
