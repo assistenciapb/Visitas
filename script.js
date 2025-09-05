@@ -1,6 +1,9 @@
-// script.js (modular, Firebase v12+)
+// site.js (versão segura com Firebase Auth)
+
+// Importações Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 
 // Configuração Firebase
 const firebaseConfig = {
@@ -14,6 +17,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth();
 
 // DOM Elements
 const visitaForm = document.getElementById('visitaForm');
@@ -33,27 +37,54 @@ const cancelStatusBtn = document.getElementById('cancelStatusBtn');
 const bairroButtons = document.querySelectorAll('.bairro-btn');
 const ordenarBtn = document.getElementById('ordenarBtn');
 const ordenarMenu = document.getElementById('ordenarMenu');
+const searchInput = document.getElementById('searchInput');
 
 let editingId = null;
 let currentStatusId = null;
 let currentFilter = '';
 let currentSort = 'agendadas-recentes';
+let currentSearch = '';
 
-// Scroll util
+// ----------------------
+// FUNÇÃO DE LOGIN VERIFICADO
+// ----------------------
+onAuthStateChanged(auth, user => {
+  if (!user) {
+    window.location.href = 'login.html'; // redireciona se não logado
+  } else {
+    console.log("Usuário logado:", user.email);
+    initSite(); // inicializa o site somente após login
+  }
+});
+
+// Inicializa todas as funções do site
+function initSite() {
+  loadVisitas();
+  updateDashboard();
+}
+
+// ----------------------
+// SCROLL
+// ----------------------
 window.scrollToSection = id => document.getElementById(id)?.scrollIntoView({behavior:'smooth'});
 function scrollToSection(id){ window.scrollToSection(id); }
 
-// Close modals
+// ----------------------
+// MODAIS
+// ----------------------
 closeModal.onclick = () => modal.classList.remove('show');
 closeStatusModal.onclick = () => statusModal.classList.remove('show');
 cancelStatusBtn.onclick = () => statusModal.classList.remove('show');
+
 window.onclick = e => {
   if(e.target === modal) modal.classList.remove('show');
   if(e.target === statusModal) statusModal.classList.remove('show');
   if(e.target !== ordenarBtn && e.target !== ordenarMenu) ordenarMenu.style.display='none';
 };
 
-// Ordenar menu
+// ----------------------
+// MENU ORDENAR
+// ----------------------
 ordenarBtn.onclick = e => {
   e.stopPropagation();
   ordenarMenu.style.display = ordenarMenu.style.display==='flex'?'none':'flex';
@@ -66,7 +97,9 @@ ordenarMenu.querySelectorAll('div').forEach(item=>{
   };
 });
 
-// Form submit
+// ----------------------
+// FORMULÁRIO
+// ----------------------
 visitaForm.addEventListener('submit', async e => {
   e.preventDefault();
   const now = new Date();
@@ -106,7 +139,9 @@ visitaForm.addEventListener('submit', async e => {
   }
 });
 
-// Create card
+// ----------------------
+// CRIAR CARD
+// ----------------------
 function createCard(visita, id){
   const card = document.createElement('div');
   card.className='card';
@@ -177,98 +212,91 @@ function createCard(visita, id){
     };
 
     // Impressão Profissional: Formulário de Encaminhamento
-modalButtons.querySelector('.print-btn').onclick = () => {
-  const { jsPDF } = window.jspdf;
-  const docPDF = new jsPDF('p','mm','a4');
-  const pageWidth = docPDF.internal.pageSize.getWidth();
-  const margin = { left: 20, right: 20, top: 20 };
-  let y = margin.top;
+    modalButtons.querySelector('.print-btn').onclick = () => {
+      const { jsPDF } = window.jspdf;
+      const docPDF = new jsPDF('p','mm','a4');
+      const pageWidth = docPDF.internal.pageSize.getWidth();
+      const margin = { left: 20, right: 20, top: 20 };
+      let y = margin.top;
 
-  // Cabeçalho
-  docPDF.setFont("helvetica","bold");
-  docPDF.setFontSize(16);
-  docPDF.text("FORMULÁRIO DE ENCAMINHAMENTO", pageWidth/2, y, { align: "center" });
-  y += 15;
+      // Cabeçalho
+      docPDF.setFont("helvetica","bold");
+      docPDF.setFontSize(16);
+      docPDF.text("FORMULÁRIO DE ENCAMINHAMENTO", pageWidth/2, y, { align: "center" });
+      y += 15;
 
-  docPDF.setFont("helvetica","normal");
-  docPDF.setFontSize(12);
-  const lineHeight = 8;
+      docPDF.setFont("helvetica","normal");
+      docPDF.setFontSize(12);
+      const lineHeight = 8;
 
-  // Cabeçalho inicial com linhas
-  docPDF.text("Encaminhamos o Sr.(a):", margin.left, y);
-  docPDF.text(visita.nome || "______________________________", margin.left + 60, y);
-  y += lineHeight;
+      docPDF.text("Encaminhamos o Sr.(a):", margin.left, y);
+      docPDF.text(visita.nome || "______________________________", margin.left + 60, y);
+      y += lineHeight;
 
-  // Data de nascimento e CPF na mesma linha
-  docPDF.text("Data de Nascimento:", margin.left, y);
-  docPDF.text(visita.nascimento || "____/____/____", margin.left + 45, y);
-  docPDF.text("CPF:", margin.left + 100, y);
-  docPDF.text(visita.cpf || "________________", margin.left + 115, y);
-  y += lineHeight;
+      docPDF.text("Data de Nascimento:", margin.left, y);
+      docPDF.text(visita.nascimento || "____/____/____", margin.left + 45, y);
+      docPDF.text("CPF:", margin.left + 100, y);
+      docPDF.text(visita.cpf || "________________", margin.left + 115, y);
+      y += lineHeight;
 
-  docPDF.text("Endereço:", margin.left, y);
-  docPDF.text(visita.rua || "______________________________", margin.left + 35, y);
-  docPDF.text("Bairro:", margin.left + 110, y);
-  docPDF.text(visita.bairro || "________________", margin.left + 125, y);
-  y += lineHeight;
+      docPDF.text("Endereço:", margin.left, y);
+      docPDF.text(visita.rua || "______________________________", margin.left + 35, y);
+      docPDF.text("Bairro:", margin.left + 110, y);
+      docPDF.text(visita.bairro || "________________", margin.left + 125, y);
+      y += lineHeight;
 
-  docPDF.text("Ponto de Referência:", margin.left, y);
-  docPDF.text(visita.referencia || "______________________________", margin.left + 55, y);
-  y += lineHeight + 5;
+      docPDF.text("Ponto de Referência:", margin.left, y);
+      docPDF.text(visita.referencia || "______________________________", margin.left + 55, y);
+      y += lineHeight + 5;
 
-  // Tabela de informações detalhadas
-  const tableFields = [
-    ["Motivo da Visita", visita.motivo],
-    ["Dificuldades Apresentadas", visita.dificuldades],
-    ["Observações", visita.observacoes],
-    [" Agendamento", visita.responsavel],
-    ["Data do Agendamento", visita.dataAgendamento],
-    ["Status Atual da Visita", visita.status],
-    ["Responsável pela Visita", visita.responsavelVisita],
-    ["Data da Realização da Visita", visita.dataRealizacao],
-    ["Parecer da Visita", visita.parecerVisita]
-  ];
+      const tableFields = [
+        ["Motivo da Visita", visita.motivo],
+        ["Dificuldades Apresentadas", visita.dificuldades],
+        ["Observações", visita.observacoes],
+        [" Agendamento", visita.responsavel],
+        ["Data do Agendamento", visita.dataAgendamento],
+        ["Status Atual da Visita", visita.status],
+        ["Responsável pela Visita", visita.responsavelVisita],
+        ["Data da Realização da Visita", visita.dataRealizacao],
+        ["Parecer da Visita", visita.parecerVisita]
+      ];
 
-  const labelWidth = 60;
-  const valueWidth = pageWidth - margin.left - margin.right - labelWidth;
-  const cellPadding = 2;
+      const labelWidth = 60;
+      const valueWidth = pageWidth - margin.left - margin.right - labelWidth;
+      const cellPadding = 2;
 
-  docPDF.setFont("helvetica","bold");
-  tableFields.forEach(([label, value]) => {
-    const textLines = docPDF.splitTextToSize(value || "______________________________", valueWidth - 2*cellPadding);
-    const cellHeight = Math.max(10, textLines.length * lineHeight);
+      docPDF.setFont("helvetica","bold");
+      tableFields.forEach(([label, value]) => {
+        const textLines = docPDF.splitTextToSize(value || "______________________________", valueWidth - 2*cellPadding);
+        const cellHeight = Math.max(10, textLines.length * lineHeight);
 
-    if(y + cellHeight > docPDF.internal.pageSize.getHeight() - margin.top){
-      docPDF.addPage();
-      y = margin.top;
-    }
+        if(y + cellHeight > docPDF.internal.pageSize.getHeight() - margin.top){
+          docPDF.addPage();
+          y = margin.top;
+        }
 
-    docPDF.rect(margin.left, y, labelWidth, cellHeight);
-    docPDF.rect(margin.left + labelWidth, y, valueWidth, cellHeight);
+        docPDF.rect(margin.left, y, labelWidth, cellHeight);
+        docPDF.rect(margin.left + labelWidth, y, valueWidth, cellHeight);
 
-    docPDF.text(label, margin.left + cellPadding, y + 7);
-    docPDF.setFont("helvetica","normal");
-    docPDF.text(textLines, margin.left + labelWidth + cellPadding, y + 7);
-    docPDF.setFont("helvetica","bold");
+        docPDF.text(label, margin.left + cellPadding, y + 7);
+        docPDF.setFont("helvetica","normal");
+        docPDF.text(textLines, margin.left + labelWidth + cellPadding, y + 7);
+        docPDF.setFont("helvetica","bold");
 
-    y += cellHeight;
-  });
+        y += cellHeight;
+      });
 
-  y += 10;
+      y += 10;
+      docPDF.setFont("helvetica","normal");
+      docPDF.setFontSize(12);
+      docPDF.text("Secretaria Municipal de Assistência Social - SEMAS", pageWidth/2, y, { align: "center" });
+      y += 6;
+      docPDF.text("Avenida Domingos Sertão S/N", pageWidth/2, y, { align: "center" });
+      y += 6;
+      docPDF.text("Pastos Bons - MA", pageWidth/2, y, { align: "center" });
 
-  // Mensagem padronizada centralizada
-  docPDF.setFont("helvetica","normal");
-  docPDF.setFontSize(12);
-  docPDF.text("Secretaria Municipal de Assistência Social - SEMAS", pageWidth/2, y, { align: "center" });
-  y += 6;
-  docPDF.text("Avenida Domingos Sertão S/N", pageWidth/2, y, { align: "center" });
-  y += 6;
-  docPDF.text("Pastos Bons - MA", pageWidth/2, y, { align: "center" });
-
-  docPDF.save(`${sanitizeFilename(visita.nome)}-formulario-encaminhamento.pdf`);
-};
-
-
+      docPDF.save(`${sanitizeFilename(visita.nome)}-formulario-encaminhamento.pdf`);
+    };
 
     modal.classList.add('show');
   });
@@ -277,33 +305,73 @@ modalButtons.querySelector('.print-btn').onclick = () => {
   setTimeout(()=>card.classList.add('show'),50);
 }
 
-// Carregar visitas
-async function loadVisitas(){
-  visitasContainer.innerHTML='';
-  const snap = await getDocs(collection(db,'visitas'));
-  let visitas=[];
-  snap.forEach(s => visitas.push({id:s.id,...s.data()}));
-  if(currentFilter) visitas = visitas.filter(v=>v.bairro===currentFilter);
+
+
+// ----------------------
+// CARREGAR VISITAS
+// ----------------------
+// Carregar visitas com filtro e busca
+async function loadVisitas() {
+  visitasContainer.innerHTML = '';
+  const snap = await getDocs(collection(db, 'visitas'));
+  let visitas = [];
+  snap.forEach(s => visitas.push({ id: s.id, ...s.data() }));
+
+  // Aplicar filtro por bairro
+  if (currentFilter) visitas = visitas.filter(v => v.bairro === currentFilter);
+
+  // Aplicar busca por nome
+  if (currentSearch) visitas = visitas.filter(v => v.nome.toLowerCase().includes(currentSearch.toLowerCase()));
 
   // Ordenação
-  visitas.sort((a,b)=>{
-    switch(currentSort){
-      case 'agendadas-recentes': return new Date(b.dataAgendamentoISO||b.dataAgendamento) - new Date(a.dataAgendamentoISO||a.dataAgendamento);
-      case 'agendadas-antigas': return new Date(a.dataAgendamentoISO||a.dataAgendamento) - new Date(b.dataAgendamentoISO||b.dataAgendamento);
-      case 'realizadas-recentes': return (b.status==='Realizada'?1:0)-(a.status==='Realizada'?1:0) || new Date(b.dataRealizacao||b.dataAgendamentoISO||b.dataAgendamento)-new Date(a.dataRealizacao||a.dataAgendamentoISO||a.dataAgendamento);
-      case 'realizadas-antigas': return (a.status==='Realizada'?1:0)-(b.status==='Realizada'?1:0) || new Date(a.dataRealizacao||a.dataAgendamentoISO||a.dataAgendamento)-new Date(b.dataRealizacao||b.dataAgendamentoISO||b.dataAgendamento);
-      case 'alfabetica': return a.nome.localeCompare(b.nome);
-      default: return 0;
+  visitas.sort((a, b) => {
+    switch (currentSort) {
+      case 'agendadas-recentes':
+        return new Date(b.dataAgendamentoISO || b.dataAgendamento) - new Date(a.dataAgendamentoISO || a.dataAgendamento);
+
+      case 'agendadas-antigas':
+        return new Date(a.dataAgendamentoISO || a.dataAgendamento) - new Date(b.dataAgendamentoISO || b.dataAgendamento);
+
+      case 'realizadas-recentes':
+        return compareVisitas(a, b, true);
+
+      case 'realizadas-antigas':
+        return compareVisitas(a, b, false);
+
+      case 'alfabetica':
+        return a.nome.localeCompare(b.nome);
+
+      default:
+        return 0;
     }
   });
 
-  visitas.forEach(v => createCard(v,v.id));
-
-  // Atualiza dashboard
+  visitas.forEach(v => createCard(v, v.id));
   updateDashboard();
 }
 
-// Botões de filtro
+// Função auxiliar de comparação para ordenar realizadas e agendadas corretamente
+function compareVisitas(a, b, recentes = true) {
+  // Prioriza realizadas
+  if (a.status === 'Realizada' && b.status !== 'Realizada') return -1;
+  if (a.status !== 'Realizada' && b.status === 'Realizada') return 1;
+
+  // Ambos realizadas
+  if (a.status === 'Realizada' && b.status === 'Realizada') {
+    const dateA = new Date(a.dataRealizacao || a.dataAgendamentoISO || a.dataAgendamento);
+    const dateB = new Date(b.dataRealizacao || b.dataAgendamentoISO || b.dataAgendamento);
+    return recentes ? dateB - dateA : dateA - dateB;
+  }
+
+  // Ambos agendadas
+  const dateA = new Date(a.dataAgendamentoISO || a.dataAgendamento);
+  const dateB = new Date(b.dataAgendamentoISO || b.dataAgendamento);
+  return recentes ? dateB - dateA : dateA - dateB;
+}
+
+// ----------------------
+// FILTRO POR BAIRRO
+// ----------------------
 bairroButtons.forEach(btn => {
   btn.addEventListener('click', () => {
     currentFilter = btn.dataset.bairro || '';
@@ -311,26 +379,40 @@ bairroButtons.forEach(btn => {
   });
 });
 
-// Modal de status submit
-statusForm.onsubmit=async e=>{
+// ----------------------
+// BARRA DE BUSCA
+// ----------------------
+searchInput.addEventListener('input', () => {
+  currentSearch = searchInput.value.trim();
+  loadVisitas();
+});
+
+// ----------------------
+// MODAL DE STATUS (Marcar como realizada)
+// ----------------------
+statusForm.onsubmit = async e => {
   e.preventDefault();
-  if(!responsavelVisitaInput.value.trim()) return alert('Informe o responsável pela visita');
-  await updateDoc(doc(db,'visitas',currentStatusId),{
-    status:'Realizada',
+  if(!responsavelVisitaInput.value.trim()) {
+    alert('Informe o responsável pela visita');
+    return;
+  }
+  await updateDoc(doc(db, 'visitas', currentStatusId), {
+    status: 'Realizada',
     responsavelVisita: responsavelVisitaInput.value.trim(),
     parecerVisita: parecerVisitaInput.value.trim(),
-    dataRealizacao:new Date().toLocaleDateString('pt-BR')
+    dataRealizacao: new Date().toLocaleDateString('pt-BR')
   });
   statusModal.classList.remove('show');
   loadVisitas();
 };
 
-// Atualizar dashboard
+// ----------------------
+// DASHBOARD
+// ----------------------
 async function updateDashboard(){
   const snap = await getDocs(collection(db,'visitas'));
   let totalAgendadas = 0;
   let totalRealizadas = 0;
-
   let bairros = {
     'Santa Maria': {agendadas:0, realizadas:0},
     'Zona Rural': {agendadas:0, realizadas:0},
@@ -341,7 +423,6 @@ async function updateDashboard(){
     const v = s.data();
     if(v.status==='Agendada') totalAgendadas++;
     if(v.status==='Realizada') totalRealizadas++;
-
     if(bairros[v.bairro]){
       if(v.status==='Agendada') bairros[v.bairro].agendadas++;
       if(v.status==='Realizada') bairros[v.bairro].realizadas++;
@@ -350,24 +431,38 @@ async function updateDashboard(){
 
   document.getElementById('totalAgendadas').textContent = totalAgendadas;
   document.getElementById('totalRealizadas').textContent = totalRealizadas;
-
-  // Bairro Santa Maria
-  document.getElementById('bairroSantaMariaAgendadas').textContent = bairros['Santa Maria'].agendadas+' Agendadas';
-  document.getElementById('bairroSantaMariaRealizadas').textContent = bairros['Santa Maria'].realizadas+' Realizadas';
-
-  // Bairro Zona Rural
-  document.getElementById('bairroZonaRuralAgendadas').textContent = bairros['Zona Rural'].agendadas+' Agendadas';
-  document.getElementById('bairroZonaRuralRealizadas').textContent = bairros['Zona Rural'].realizadas+' Realizadas';
-
-  // Bairro Poeirão
-  document.getElementById('bairroPoeiraoAgendadas').textContent = bairros['Poeirão'].agendadas+' Agendadas';
-  document.getElementById('bairroPoeiraoRealizadas').textContent = bairros['Poeirão'].realizadas+' Realizadas';
+  document.getElementById('bairroSantaMariaAgendadas').textContent = bairros['Santa Maria'].agendadas + ' Agendadas';
+  document.getElementById('bairroSantaMariaRealizadas').textContent = bairros['Santa Maria'].realizadas + ' Realizadas';
+  document.getElementById('bairroZonaRuralAgendadas').textContent = bairros['Zona Rural'].agendadas + ' Agendadas';
+  document.getElementById('bairroZonaRuralRealizadas').textContent = bairros['Zona Rural'].realizadas + ' Realizadas';
+  document.getElementById('bairroPoeiraoAgendadas').textContent = bairros['Poeirão'].agendadas + ' Agendadas';
+  document.getElementById('bairroPoeiraoRealizadas').textContent = bairros['Poeirão'].realizadas + ' Realizadas';
 }
 
-// Utilitários
-function escapeHtml(str){ if(!str && str!==0) return ''; return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
-function sanitizeFilename(name){ return (name||'visita').replace(/[^a-z0-9_\-]/gi,'_'); }
+// ----------------------
+// UTILITÁRIOS
+// ----------------------
+function escapeHtml(str){
+  if(!str && str!==0) return '';
+  return String(str)
+    .replaceAll('&','&amp;')
+    .replaceAll('<','&lt;')
+    .replaceAll('>','&gt;')
+    .replaceAll('"','&quot;');
+}
 
-// Inicializar
-loadVisitas();
-sa
+function sanitizeFilename(name){
+  return (name||'visita').replace(/[^a-z0-9_\-]/gi,'_');
+}
+
+// ----------------------
+// LOGOUT
+// ----------------------
+const logoutBtn = document.getElementById('logoutBtn');
+if(logoutBtn){
+  logoutBtn.addEventListener('click', () => {
+    signOut(auth).then(() => window.location.href='login.html');
+  });
+}
+
+
