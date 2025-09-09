@@ -1,4 +1,4 @@
-// site.js (versão completa com controle de acesso admin/user)
+// site.js (versão segura com Firebase Auth e controle de acesso)
 
 // Importações Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
@@ -45,27 +45,28 @@ let currentStatusId = null;
 let currentFilter = '';
 let currentSort = 'agendadas-recentes';
 let currentSearch = '';
-let currentUserRole = 'user'; // user ou admin
+let currentUserRole = 'user'; // default
 
 // ----------------------
-// FUNÇÃO DE LOGIN VERIFICADO
+// FUNÇÃO DE LOGIN VERIFICADO E DEFINIÇÃO DE ROLE
 // ----------------------
 onAuthStateChanged(auth, async user => {
   if (!user) {
     window.location.href = 'login.html';
   } else {
-    // Buscar role do usuário
-    const snapUsers = await getDocs(collection(db,'usuarios'));
-    snapUsers.forEach(u => {
-      const data = u.data();
-      if(data.email === user.email) currentUserRole = data.role || 'user';
+    console.log("Usuário logado:", user.email);
+    // Busca role do usuário
+    const usersSnap = await getDocs(collection(db, 'usuarios'));
+    usersSnap.forEach(u => {
+      if(u.data().email === user.email) currentUserRole = u.data().role || 'user';
     });
-    console.log("Usuário logado:", user.email, "Role:", currentUserRole);
     initSite();
   }
 });
 
-// Inicializa todas as funções do site
+// ----------------------
+// INICIALIZAÇÃO DO SITE
+// ----------------------
 function initSite() {
   loadVisitas();
   updateDashboard();
@@ -160,9 +161,152 @@ function createCard(visita, id){
     <p class="status-label ${statusClass}">${escapeHtml(visita.status || 'Agendada')}</p>
   `;
 
-  // Apenas admin pode abrir modal
-  if(currentUserRole==='admin'){
-    card.addEventListener('click', () => openModal(visita, id));
+  // Somente admin pode abrir o modal
+  if(currentUserRole === 'admin'){
+    card.addEventListener('click', () => {
+      modalBody.innerHTML = `
+        <p><strong>Nome:</strong> ${escapeHtml(visita.nome)}</p>
+        <p><strong>Data de Nascimento:</strong> ${escapeHtml(visita.nascimento)}</p>
+        <p><strong>CPF:</strong> ${escapeHtml(visita.cpf)}</p>
+        <p><strong>Endereço:</strong> ${escapeHtml(visita.rua)}, ${escapeHtml(visita.bairro)}</p>
+        <p><strong>Ponto de referência:</strong> ${escapeHtml(visita.referencia || '-')}</p>
+        <p><strong>Motivo:</strong> ${escapeHtml(visita.motivo || '-')}</p>
+        <p><strong>Dificuldades:</strong> ${escapeHtml(visita.dificuldades || '-')}</p>
+        <p><strong>Observações:</strong> ${escapeHtml(visita.observacoes || '-')}</p>
+        <p><strong>Responsável:</strong> ${escapeHtml(visita.responsavel)}</p>
+        <p><strong>Status:</strong> ${escapeHtml(visita.status || 'Agendada')}</p>
+        <p><strong>Responsável pela visita:</strong> ${escapeHtml(visita.responsavelVisita || '-')}</p>
+        <p><strong>Data de realização:</strong> ${escapeHtml(visita.dataRealizacao || '-')}</p>
+        <p><strong>Parecer da visita:</strong> ${escapeHtml(visita.parecerVisita || '-')}</p>
+      `;
+
+      modalButtons.innerHTML=`
+        <button class="status-btn">${visita.status==='Agendada'?'Marcar como Realizada':'Marcar como Agendada'}</button>
+        <button class="edit-btn">Editar</button>
+        <button class="delete-btn">Excluir</button>
+        <button class="print-btn">Imprimir</button>
+      `;
+
+      // Botões admin
+      modalButtons.querySelector('.status-btn').onclick = () => {
+        if(visita.status==='Agendada'){
+          currentStatusId=id;
+          responsavelVisitaInput.value='';
+          parecerVisitaInput.value='';
+          statusModal.classList.add('show');
+        } else {
+          updateDoc(doc(db,'visitas',id),{
+            status:'Agendada',
+            responsavelVisita:'',
+            parecerVisita:'',
+            dataRealizacao:''
+          }).then(()=> loadVisitas());
+        }
+      };
+
+      modalButtons.querySelector('.delete-btn').onclick = async () => {
+        if(!confirm('Deseja realmente excluir esta visita?')) return;
+        await deleteDoc(doc(db,'visitas',id));
+        modal.classList.remove('show');
+        loadVisitas();
+      };
+
+      modalButtons.querySelector('.edit-btn').onclick = () => {
+        editingId=id;
+        Object.keys(visitaForm.elements).forEach(key => {
+          if(visita[key]!==undefined) visitaForm.elements[key].value=visita[key];
+        });
+        modal.classList.remove('show');
+        scrollToSection('agendamento');
+      };
+
+      modalButtons.querySelector('.print-btn').onclick = () => {
+        const { jsPDF } = window.jspdf;
+        const docPDF = new jsPDF('p','mm','a4');
+        const pageWidth = docPDF.internal.pageSize.getWidth();
+        const margin = { left: 20, right: 20, top: 20 };
+        let y = margin.top;
+
+        docPDF.setFont("helvetica","bold");
+        docPDF.setFontSize(16);
+        docPDF.text("FORMULÁRIO DE ENCAMINHAMENTO", pageWidth/2, y, { align: "center" });
+        y += 15;
+
+        docPDF.setFont("helvetica","normal");
+        docPDF.setFontSize(12);
+        const lineHeight = 8;
+
+        docPDF.text("Encaminhamos o Sr.(a):", margin.left, y);
+        docPDF.text(visita.nome || "______________________________", margin.left + 60, y);
+        y += lineHeight;
+
+        docPDF.text("Data de Nascimento:", margin.left, y);
+        docPDF.text(visita.nascimento || "____/____/____", margin.left + 45, y);
+        docPDF.text("CPF:", margin.left + 100, y);
+        docPDF.text(visita.cpf || "________________", margin.left + 115, y);
+        y += lineHeight;
+
+        docPDF.text("Endereço:", margin.left, y);
+        docPDF.text(visita.rua || "______________________________", margin.left + 35, y);
+        docPDF.text("Bairro:", margin.left + 110, y);
+        docPDF.text(visita.bairro || "________________", margin.left + 125, y);
+        y += lineHeight;
+
+        docPDF.text("Ponto de Referência:", margin.left, y);
+        docPDF.text(visita.referencia || "______________________________", margin.left + 55, y);
+        y += lineHeight + 5;
+
+        const tableFields = [
+          ["Motivo da Visita", visita.motivo],
+          ["Dificuldades Apresentadas", visita.dificuldades],
+          ["Observações", visita.observacoes],
+          ["Responsável pelo Agendamento", visita.responsavel],
+          ["Data do Agendamento", visita.dataAgendamento],
+          ["Status Atual da Visita", visita.status],
+          ["Responsável pela Visita", visita.responsavelVisita],
+          ["Data da Realização da Visita", visita.dataRealizacao],
+          ["Parecer da Visita", visita.parecerVisita]
+        ];
+
+        const labelWidth = 60;
+        const valueWidth = pageWidth - margin.left - margin.right - labelWidth;
+        const cellPadding = 2;
+
+        docPDF.setFont("helvetica","bold");
+        tableFields.forEach(([label, value]) => {
+          const textLines = docPDF.splitTextToSize(value || "______________________________", valueWidth - 2*cellPadding);
+          const cellHeight = Math.max(10, textLines.length * lineHeight);
+
+          if(y + cellHeight > docPDF.internal.pageSize.getHeight() - margin.top){
+            docPDF.addPage();
+            y = margin.top;
+          }
+
+          docPDF.rect(margin.left, y, labelWidth, cellHeight);
+          docPDF.rect(margin.left + labelWidth, y, valueWidth, cellHeight);
+
+          docPDF.text(label, margin.left + cellPadding, y + 7);
+          docPDF.setFont("helvetica","normal");
+          docPDF.text(textLines, margin.left + labelWidth + cellPadding, y + 7);
+          docPDF.setFont("helvetica","bold");
+
+          y += cellHeight;
+        });
+
+        y += 10;
+        docPDF.setFont("helvetica","normal");
+        docPDF.setFontSize(12);
+        docPDF.text("Secretaria Municipal de Assistência Social - SEMAS", pageWidth/2, y, { align: "center" });
+        y += 6;
+        docPDF.text("Avenida Domingos Sertão S/N", pageWidth/2, y, { align: "center" });
+        y += 6;
+        docPDF.text("Pastos Bons - MA", pageWidth/2, y, { align: "center" });
+
+        docPDF.save(`${sanitizeFilename(visita.nome)}-formulario-encaminhamento.pdf`);
+      };
+
+      modal.classList.add('show');
+    });
   }
 
   visitasContainer.appendChild(card);
@@ -170,194 +314,8 @@ function createCard(visita, id){
 }
 
 // ----------------------
-// FUNÇÃO MODAL
+// AUXILIAR DE COMPARAÇÃO PARA ORDENAR VISITAS
 // ----------------------
-function openModal(visita, id){
-  modalBody.innerHTML = `
-    <p><strong>Nome:</strong> ${escapeHtml(visita.nome)}</p>
-    <p><strong>Data de Nascimento:</strong> ${escapeHtml(visita.nascimento)}</p>
-    <p><strong>CPF:</strong> ${escapeHtml(visita.cpf)}</p>
-    <p><strong>Endereço:</strong> ${escapeHtml(visita.rua)}, ${escapeHtml(visita.bairro)}</p>
-    <p><strong>Ponto de referência:</strong> ${escapeHtml(visita.referencia || '-')}</p>
-    <p><strong>Motivo:</strong> ${escapeHtml(visita.motivo || '-')}</p>
-    <p><strong>Dificuldades:</strong> ${escapeHtml(visita.dificuldades || '-')}</p>
-    <p><strong>Observações:</strong> ${escapeHtml(visita.observacoes || '-')}</p>
-    <p><strong>Responsável:</strong> ${escapeHtml(visita.responsavel)}</p>
-    <p><strong>Status:</strong> ${escapeHtml(visita.status || 'Agendada')}</p>
-    <p><strong>Responsável pela visita:</strong> ${escapeHtml(visita.responsavelVisita || '-')}</p>
-    <p><strong>Data de realização:</strong> ${escapeHtml(visita.dataRealizacao || '-')}</p>
-    <p><strong>Parecer da visita:</strong> ${escapeHtml(visita.parecerVisita || '-')}</p>
-  `;
-
-  modalButtons.innerHTML=`
-    <button class="status-btn">${visita.status==='Agendada'?'Marcar como Realizada':'Marcar como Agendada'}</button>
-    <button class="edit-btn">Editar</button>
-    <button class="delete-btn">Excluir</button>
-    <button class="print-btn">Imprimir</button>
-  `;
-
-  // Atualização de status
-  modalButtons.querySelector('.status-btn').onclick = () => {
-    if(visita.status==='Agendada'){
-      currentStatusId=id;
-      responsavelVisitaInput.value='';
-      parecerVisitaInput.value='';
-      statusModal.classList.add('show');
-    } else {
-      updateDoc(doc(db,'visitas',id),{
-        status:'Agendada',
-        responsavelVisita:'',
-        parecerVisita:'',
-        dataRealizacao:''
-      }).then(()=> loadVisitas());
-    }
-  };
-
-  // Excluir visita
-  modalButtons.querySelector('.delete-btn').onclick = async () => {
-    if(!confirm('Deseja realmente excluir esta visita?')) return;
-    await deleteDoc(doc(db,'visitas',id));
-    modal.classList.remove('show');
-    loadVisitas();
-  };
-
-  // Editar visita
-  modalButtons.querySelector('.edit-btn').onclick = () => {
-    editingId=id;
-    Object.keys(visitaForm.elements).forEach(key => {
-      if(visita[key]!==undefined) visitaForm.elements[key].value=visita[key];
-    });
-    modal.classList.remove('show');
-    scrollToSection('agendamento');
-  };
-
-  // Impressão
-  modalButtons.querySelector('.print-btn').onclick = () => {
-    const { jsPDF } = window.jspdf;
-    const docPDF = new jsPDF('p','mm','a4');
-    const pageWidth = docPDF.internal.pageSize.getWidth();
-    const margin = { left: 20, right: 20, top: 20 };
-    let y = margin.top;
-
-    docPDF.setFont("helvetica","bold");
-    docPDF.setFontSize(16);
-    docPDF.text("FORMULÁRIO DE ENCAMINHAMENTO", pageWidth/2, y, { align: "center" });
-    y += 15;
-
-    docPDF.setFont("helvetica","normal");
-    docPDF.setFontSize(12);
-    const lineHeight = 8;
-
-    docPDF.text("Encaminhamos o Sr.(a):", margin.left, y);
-    docPDF.text(visita.nome || "______________________________", margin.left + 60, y);
-    y += lineHeight;
-
-    docPDF.text("Data de Nascimento:", margin.left, y);
-    docPDF.text(visita.nascimento || "____/____/____", margin.left + 45, y);
-    docPDF.text("CPF:", margin.left + 100, y);
-    docPDF.text(visita.cpf || "________________", margin.left + 115, y);
-    y += lineHeight;
-
-    docPDF.text("Endereço:", margin.left, y);
-    docPDF.text(visita.rua || "______________________________", margin.left + 35, y);
-    docPDF.text("Bairro:", margin.left + 110, y);
-    docPDF.text(visita.bairro || "________________", margin.left + 125, y);
-    y += lineHeight;
-
-    docPDF.text("Ponto de Referência:", margin.left, y);
-    docPDF.text(visita.referencia || "______________________________", margin.left + 55, y);
-    y += lineHeight + 5;
-
-    const tableFields = [
-      ["Motivo da Visita", visita.motivo],
-      ["Dificuldades Apresentadas", visita.dificuldades],
-      ["Observações", visita.observacoes],
-      [" Agendamento", visita.responsavel],
-      ["Data do Agendamento", visita.dataAgendamento],
-      ["Status Atual da Visita", visita.status],
-      ["Responsável pela Visita", visita.responsavelVisita],
-      ["Data da Realização da Visita", visita.dataRealizacao],
-      ["Parecer da Visita", visita.parecerVisita]
-    ];
-
-    const labelWidth = 60;
-    const valueWidth = pageWidth - margin.left - margin.right - labelWidth;
-    const cellPadding = 2;
-
-    docPDF.setFont("helvetica","bold");
-    tableFields.forEach(([label, value]) => {
-      const textLines = docPDF.splitTextToSize(value || "______________________________", valueWidth - 2*cellPadding);
-      const cellHeight = Math.max(10, textLines.length * lineHeight);
-
-      if(y + cellHeight > docPDF.internal.pageSize.getHeight() - margin.top){
-        docPDF.addPage();
-        y = margin.top;
-      }
-
-      docPDF.rect(margin.left, y, labelWidth, cellHeight);
-      docPDF.rect(margin.left + labelWidth, y, valueWidth, cellHeight);
-
-      docPDF.text(label, margin.left + cellPadding, y + 7);
-      docPDF.setFont("helvetica","normal");
-      docPDF.text(textLines, margin.left + labelWidth + cellPadding, y + 7);
-      docPDF.setFont("helvetica","bold");
-
-      y += cellHeight;
-    });
-
-    y += 10;
-    docPDF.setFont("helvetica","normal");
-    docPDF.setFontSize(12);
-    docPDF.text("Secretaria Municipal de Assistência Social - SEMAS", pageWidth/2, y, { align: "center" });
-    y += 6;
-    docPDF.text("Avenida Domingos Sertão S/N", pageWidth/2, y, { align: "center" });
-    y += 6;
-    docPDF.text("Pastos Bons - MA", pageWidth/2, y, { align: "center" });
-
-    docPDF.save(`${sanitizeFilename(visita.nome)}-formulario-encaminhamento.pdf`);
-  };
-
-  modal.classList.add('show');
-}
-
-// ----------------------
-// CARREGAR VISITAS
-// ----------------------
-async function loadVisitas() {
-  visitasContainer.innerHTML = '';
-  const snap = await getDocs(collection(db, 'visitas'));
-  let visitas = [];
-  snap.forEach(s => visitas.push({ id: s.id, ...s.data() }));
-
-  // Aplicar filtro por bairro
-  if (currentFilter) visitas = visitas.filter(v => v.bairro === currentFilter);
-
-  // Aplicar busca por nome
-  if (currentSearch) visitas = visitas.filter(v => v.nome.toLowerCase().includes(currentSearch.toLowerCase()));
-
-  // Ordenação
-  visitas.sort((a, b) => {
-    switch (currentSort) {
-      case 'agendadas-recentes':
-        return new Date(b.dataAgendamentoISO || b.dataAgendamento) - new Date(a.dataAgendamentoISO || a.dataAgendamento);
-      case 'agendadas-antigas':
-        return new Date(a.dataAgendamentoISO || a.dataAgendamento) - new Date(b.dataAgendamentoISO || b.dataAgendamento);
-      case 'realizadas-recentes':
-        return compareVisitas(a, b, true);
-      case 'realizadas-antigas':
-        return compareVisitas(a, b, false);
-      case 'alfabetica':
-        return a.nome.localeCompare(b.nome);
-      default:
-        return 0;
-    }
-  });
-
-  visitas.forEach(v => createCard(v, v.id));
-  updateDashboard();
-}
-
-// Função auxiliar de comparação para ordenar realizadas e agendadas corretamente
 function compareVisitas(a, b, recentes = true) {
   if (a.status === 'Realizada' && b.status !== 'Realizada') return -1;
   if (a.status !== 'Realizada' && b.status === 'Realizada') return 1;
@@ -371,6 +329,37 @@ function compareVisitas(a, b, recentes = true) {
   const dateA = new Date(a.dataAgendamentoISO || a.dataAgendamento);
   const dateB = new Date(b.dataAgendamentoISO || b.dataAgendamento);
   return recentes ? dateB - dateA : dateA - dateB;
+}
+
+// ----------------------
+// CARREGAR VISITAS
+// ----------------------
+async function loadVisitas() {
+  visitasContainer.innerHTML = '';
+  const snap = await getDocs(collection(db, 'visitas'));
+  let visitas = [];
+  snap.forEach(s => visitas.push({ id: s.id, ...s.data() }));
+
+  // Filtro por bairro
+  if (currentFilter) visitas = visitas.filter(v => v.bairro === currentFilter);
+
+  // Filtro por busca
+  if (currentSearch) visitas = visitas.filter(v => v.nome.toLowerCase().includes(currentSearch.toLowerCase()));
+
+  // Ordenação
+  visitas.sort((a, b) => {
+    switch (currentSort) {
+      case 'agendadas-recentes': return new Date(b.dataAgendamentoISO || b.dataAgendamento) - new Date(a.dataAgendamentoISO || a.dataAgendamento);
+      case 'agendadas-antigas': return new Date(a.dataAgendamentoISO || a.dataAgendamento) - new Date(b.dataAgendamentoISO || b.dataAgendamento);
+      case 'realizadas-recentes': return compareVisitas(a, b, true);
+      case 'realizadas-antigas': return compareVisitas(a, b, false);
+      case 'alfabetica': return a.nome.localeCompare(b.nome);
+      default: return 0;
+    }
+  });
+
+  visitas.forEach(v => createCard(v, v.id));
+  updateDashboard();
 }
 
 // ----------------------
@@ -467,5 +456,4 @@ if(logoutBtn){
     signOut(auth).then(() => window.location.href='login.html');
   });
 }
-
 
