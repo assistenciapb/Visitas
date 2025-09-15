@@ -29,31 +29,6 @@ section h2 {
   font-weight:700;
 }
 
-/* Dashboard */
-.dashboard-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
-  max-width:1100px;
-  margin:0 auto 40px;
-  padding:0 10px;
-}
-.dashboard-card {
-  background: linear-gradient(135deg,#2e5a86,#214563);
-  padding: 18px;
-  border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(20,30,50,0.06);
-  text-align: center;
-  transition: transform .18s, box-shadow .18s;
-  color: #fff;
-}
-.dashboard-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 14px 30px rgba(20,30,50,0.09);
-}
-.card-title { font-weight: 600; margin-bottom: 6px; font-size: 14px; }
-.card-value { font-size: 14px; font-weight: 700; }
-
 /* Form */
 #visitaForm {
   background: rgba(255,255,255,0.98); padding:26px; border-radius:12px; max-width:720px;
