@@ -18,40 +18,11 @@
 
   <!-- Barra fixa -->
   <header>
-    <button onclick="scrollToSection('dashboard')"><i class="fas fa-chart-bar"></i> Dashboard</button>
     <button onclick="scrollToSection('agendamento')"><i class="fas fa-calendar-plus"></i> Agendar Visita</button>
     <button onclick="scrollToSection('visitas')"><i class="fas fa-list"></i> Visitas Agendadas</button>
+    <button onclick="window.open('dashboard.html', '_blank')">Dashboard</button>
+    <button id="logoutBtn">Logout</button>
   </header>
-
-  <!-- Seção Dashboard -->
-  <section id="dashboard">
-    <h2>Dashboard de Visitas</h2>
-    <div class="dashboard-cards">
-      <div class="dashboard-card">
-        <p class="card-title">Visitas Agendadas</p>
-        <p class="card-value" id="totalAgendadas">0</p>
-      </div>
-      <div class="dashboard-card">
-        <p class="card-title">Visitas Realizadas</p>
-        <p class="card-value" id="totalRealizadas">0</p>
-      </div>
-      <div class="dashboard-card bairro-card">
-        <p class="card-title">Santa Maria</p>
-        <p class="card-value" id="bairroSantaMariaAgendadas">0 Agendadas</p>
-        <p class="card-value" id="bairroSantaMariaRealizadas">0 Realizadas</p>
-      </div>
-      <div class="dashboard-card bairro-card">
-        <p class="card-title">Zona Rural</p>
-        <p class="card-value" id="bairroZonaRuralAgendadas">0 Agendadas</p>
-        <p class="card-value" id="bairroZonaRuralRealizadas">0 Realizadas</p>
-      </div>
-      <div class="dashboard-card bairro-card">
-        <p class="card-title">Poeirão</p>
-        <p class="card-value" id="bairroPoeiraoAgendadas">0 Agendadas</p>
-        <p class="card-value" id="bairroPoeiraoRealizadas">0 Realizadas</p>
-      </div>
-    </div>
-  </section>
 
   <!-- Seção Agendamento -->
   <section id="agendamento">
@@ -68,7 +39,15 @@
         <option value="Poeirão">Poeirão</option>
       </select>
       <input type="text" name="referencia" placeholder="Ponto de referência" />
-      <input type="text" name="motivo" placeholder="Motivo da visita" required />
+      <div>
+    <select name="motivo" required>
+      <option value="">Selecione o motivo</option>
+      <option value="Unipessoal">Unipessoal</option>
+      <option value="Exclusão de Familiar">Exclusão de Familiar</option>
+      <option value="Transferência">Transferência</option>
+      <option value="Outros">Outros</option>
+    </select>
+  </div>
       <input type="text" name="dificuldades" placeholder="Dificuldades apresentadas" />
       <textarea name="observacoes" placeholder="Observações"></textarea>
       <input type="text" name="responsavel" placeholder="Responsável pelo agendamento" required />
