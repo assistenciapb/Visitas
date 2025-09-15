@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Agendamento de Visitas</title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="dashboard.css">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Firebase -->
+  <script type="module" src="dashboard.js"></script>
+</head>
+<body>
+  <header>
+  <div class="header-container">
+    <h1>Dashboard</h1>
+    <button id="logoutBtn">Logout</button>
+  </div>
+</header>
+
+
+  <main>
+    <!-- Filtros de tempo -->
+    <div class="filtros-tempo">
+      <button data-time="semana">Semana</button>
+      <button data-time="mes">Mês</button>
+      <button data-time="ano">Ano</button>
+
+      <select id="mesSelect">
+        <option value="">Selecione o mês</option>
+        <option value="0">Janeiro</option>
+        <option value="1">Fevereiro</option>
+        <option value="2">Março</option>
+        <option value="3">Abril</option>
+        <option value="4">Maio</option>
+        <option value="5">Junho</option>
+        <option value="6">Julho</option>
+        <option value="7">Agosto</option>
+        <option value="8">Setembro</option>
+        <option value="9">Outubro</option>
+        <option value="10">Novembro</option>
+        <option value="11">Dezembro</option>
+      </select>
+
+      <select id="anoSelect">
+        <option value="">Selecione o ano</option>
+      </select>
+    </div>
+
+    <!-- Card resumo -->
+    <div class="resumo-card">
+      <div>Total de Visitas: <span id="totalVisitas">0</span></div>
+      <div>Agendadas: <span id="totalAgendadas">0</span></div>
+      <div>Realizadas: <span id="totalRealizadas">0</span></div>
+    </div>
+
+    <!-- Gráfico visitas por bairro -->
+    <div class="grafico-card">
+      <canvas id="graficoBairro"></canvas>
+    </div>
+
+    <!-- Gráficos comparativos -->
+    <div class="graficos-comparativos">
+      <div class="grafico-card">
+        <canvas id="graficoRealizadasParecer"></canvas>
+      </div>
+      <div class="grafico-card">
+        <canvas id="graficoMotivos"></canvas>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

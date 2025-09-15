@@ -1,0 +1,78 @@
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(to bottom, #eef3fb, #dbe7f7);
+  color:#222;
+  margin:0;
+  padding:0;
+}
+
+header {
+  background:#1f2a38;
+  padding:14px 20px;
+}
+
+.header-container {
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:20px;
+}
+
+header h1 {
+  color:#fff;
+  font-size:20px;
+  font-weight:700;
+  margin:0;
+}
+
+header button {
+  padding:10px 16px;
+  border:none;
+  border-radius:8px;
+  background:#2e5a86;
+  color:#fff;
+  font-weight:600;
+  cursor:pointer;
+}
+
+header button:hover { background:#214563; }
+
+
+main { max-width:1100px; margin:80px auto 40px; padding:0 15px; display:flex; flex-direction:column; gap:20px; }
+
+.filtros-tempo { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+.filtros-tempo button, .filtros-tempo select {
+  padding:8px 14px;
+  border-radius:8px;
+  border:none;
+  background:#2e5a86;
+  color:#fff;
+  cursor:pointer;
+}
+.filtros-tempo button:hover, .filtros-tempo select:hover { background:#214563; }
+
+.resumo-card {
+  display:flex;
+  justify-content:space-around;
+  background:#fff;
+  padding:20px;
+  border-radius:12px;
+  box-shadow:0 6px 20px rgba(0,0,0,0.08);
+  font-size:16px;
+  font-weight:700;
+}
+
+.grafico-card {
+  background:#fff;
+  padding:20px;
+  border-radius:12px;
+  box-shadow:0 6px 20px rgba(0,0,0,0.08);
+}
+
+.graficos-comparativos {
+  display:flex;
+  gap:20px;
+  flex-wrap:wrap;
+}
+
+.graficos-comparativos .grafico-card { flex:1; min-width:300px; }
