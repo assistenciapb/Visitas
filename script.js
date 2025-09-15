@@ -52,7 +52,7 @@ let currentUserRole = 'user'; // default
 // ----------------------
 onAuthStateChanged(auth, async user => {
   if (!user) {
-    window.location.href = 'login.html';
+    window.location.href = 'index.html';
   } else {
     console.log("Usuário logado:", user.email);
     // Busca role do usuário
@@ -155,16 +155,17 @@ function createCard(visita, id){
   const card = document.createElement('div');
   card.className='card';
   const statusClass = visita.status === 'Agendada' ? 'status-agendada' : 'status-realizada';
-  card.innerHTML = `
+  card.innerHTML=`
     <p><strong>${escapeHtml(visita.nome)}</strong></p>
     <p class="muted">${escapeHtml(visita.dataAgendamento)}</p>
     <p class="status-label ${statusClass}">${escapeHtml(visita.status || 'Agendada')}</p>
+    ${visita.parecerTecnico ? '<p class="status-parecer">parecer técnico disponível</p>' : ''}
   `;
 
   // Somente admin pode abrir o modal
   if(currentUserRole === 'admin'){
     card.addEventListener('click', () => {
-      modalBody.innerHTML = `
+      modalBody.innerHTML=`
         <p><strong>Nome:</strong> ${escapeHtml(visita.nome)}</p>
         <p><strong>Data de Nascimento:</strong> ${escapeHtml(visita.nascimento)}</p>
         <p><strong>CPF:</strong> ${escapeHtml(visita.cpf)}</p>
@@ -178,16 +179,25 @@ function createCard(visita, id){
         <p><strong>Responsável pela visita:</strong> ${escapeHtml(visita.responsavelVisita || '-')}</p>
         <p><strong>Data de realização:</strong> ${escapeHtml(visita.dataRealizacao || '-')}</p>
         <p><strong>Parecer da visita:</strong> ${escapeHtml(visita.parecerVisita || '-')}</p>
+        ${visita.parecerTecnico ? '<p><strong>Parecer Técnico:</strong> disponível</p>' : ''}
       `;
 
-      modalButtons.innerHTML=`
+      // Botões admin
+      let buttonsHtml=`
         <button class="status-btn">${visita.status==='Agendada'?'Marcar como Realizada':'Marcar como Agendada'}</button>
         <button class="edit-btn">Editar</button>
         <button class="delete-btn">Excluir</button>
         <button class="print-btn">Imprimir</button>
       `;
 
-      // Botões admin
+      // Apenas se status é Realizada e parecer técnico não existe
+      if(visita.status==='Realizada' && !visita.parecerTecnico){
+        buttonsHtml += `<button class="parecer-btn">Confirmar parecer técnico</button>`;
+      }
+
+      modalButtons.innerHTML = buttonsHtml;
+
+      // Botão status
       modalButtons.querySelector('.status-btn').onclick = () => {
         if(visita.status==='Agendada'){
           currentStatusId=id;
@@ -199,11 +209,13 @@ function createCard(visita, id){
             status:'Agendada',
             responsavelVisita:'',
             parecerVisita:'',
-            dataRealizacao:''
+            dataRealizacao:'',
+            parecerTecnico: ''
           }).then(()=> loadVisitas());
         }
       };
 
+      // Botão delete
       modalButtons.querySelector('.delete-btn').onclick = async () => {
         if(!confirm('Deseja realmente excluir esta visita?')) return;
         await deleteDoc(doc(db,'visitas',id));
@@ -211,6 +223,7 @@ function createCard(visita, id){
         loadVisitas();
       };
 
+      // Botão edit
       modalButtons.querySelector('.edit-btn').onclick = () => {
         editingId=id;
         Object.keys(visitaForm.elements).forEach(key => {
@@ -220,6 +233,7 @@ function createCard(visita, id){
         scrollToSection('agendamento');
       };
 
+      // Botão imprimir
       modalButtons.querySelector('.print-btn').onclick = () => {
         const { jsPDF } = window.jspdf;
         const docPDF = new jsPDF('p','mm','a4');
@@ -265,7 +279,8 @@ function createCard(visita, id){
           ["Status Atual da Visita", visita.status],
           ["Responsável pela Visita", visita.responsavelVisita],
           ["Data da Realização da Visita", visita.dataRealizacao],
-          ["Parecer da Visita", visita.parecerVisita]
+          ["Parecer da Visita", visita.parecerVisita],
+          ["Parecer Técnico", visita.parecerTecnico ? "Disponível" : "Não disponível"]
         ];
 
         const labelWidth = 60;
@@ -304,6 +319,16 @@ function createCard(visita, id){
 
         docPDF.save(`${sanitizeFilename(visita.nome)}-formulario-encaminhamento.pdf`);
       };
+
+      // Botão Parecer Técnico
+      const parecerBtn = modalButtons.querySelector('.parecer-btn');
+      if(parecerBtn){
+        parecerBtn.onclick = async () => {
+          await updateDoc(doc(db,'visitas',id), { parecerTecnico: true });
+          modal.classList.remove('show');
+          loadVisitas();
+        };
+      }
 
       modal.classList.add('show');
     });
@@ -358,8 +383,8 @@ async function loadVisitas() {
     }
   });
 
+  // Cria os cards
   visitas.forEach(v => createCard(v, v.id));
-  updateDashboard();
 }
 
 // ----------------------
@@ -400,39 +425,6 @@ statusForm.onsubmit = async e => {
 };
 
 // ----------------------
-// DASHBOARD
-// ----------------------
-async function updateDashboard(){
-  const snap = await getDocs(collection(db,'visitas'));
-  let totalAgendadas = 0;
-  let totalRealizadas = 0;
-  let bairros = {
-    'Santa Maria': {agendadas:0, realizadas:0},
-    'Zona Rural': {agendadas:0, realizadas:0},
-    'Poeirão': {agendadas:0, realizadas:0}
-  };
-
-  snap.forEach(s => {
-    const v = s.data();
-    if(v.status==='Agendada') totalAgendadas++;
-    if(v.status==='Realizada') totalRealizadas++;
-    if(bairros[v.bairro]){
-      if(v.status==='Agendada') bairros[v.bairro].agendadas++;
-      if(v.status==='Realizada') bairros[v.bairro].realizadas++;
-    }
-  });
-
-  document.getElementById('totalAgendadas').textContent = totalAgendadas;
-  document.getElementById('totalRealizadas').textContent = totalRealizadas;
-  document.getElementById('bairroSantaMariaAgendadas').textContent = bairros['Santa Maria'].agendadas + ' Agendadas';
-  document.getElementById('bairroSantaMariaRealizadas').textContent = bairros['Santa Maria'].realizadas + ' Realizadas';
-  document.getElementById('bairroZonaRuralAgendadas').textContent = bairros['Zona Rural'].agendadas + ' Agendadas';
-  document.getElementById('bairroZonaRuralRealizadas').textContent = bairros['Zona Rural'].realizadas + ' Realizadas';
-  document.getElementById('bairroPoeiraoAgendadas').textContent = bairros['Poeirão'].agendadas + ' Agendadas';
-  document.getElementById('bairroPoeiraoRealizadas').textContent = bairros['Poeirão'].realizadas + ' Realizadas';
-}
-
-// ----------------------
 // UTILITÁRIOS
 // ----------------------
 function escapeHtml(str){
@@ -451,9 +443,4 @@ function sanitizeFilename(name){
 // ----------------------
 // LOGOUT
 // ----------------------
-if(logoutBtn){
-  logoutBtn.addEventListener('click', () => {
-    signOut(auth).then(() => window.location.href='login.html');
-  });
-}
-
+logoutBtn.addEventListener('click', () => signOut(auth).then(() => window.location.href='index.html'));
