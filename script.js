@@ -1,4 +1,3 @@
-// site.js (versão segura com Firebase Auth e controle de acesso)
 
 // Importações Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
@@ -39,6 +38,7 @@ const ordenarBtn = document.getElementById('ordenarBtn');
 const ordenarMenu = document.getElementById('ordenarMenu');
 const searchInput = document.getElementById('searchInput');
 const logoutBtn = document.getElementById('logoutBtn');
+const justicaFilterBtn = document.getElementById('justicaFilterBtn');
 
 let editingId = null;
 let currentStatusId = null;
@@ -55,7 +55,6 @@ onAuthStateChanged(auth, async user => {
     window.location.href = 'index.html';
   } else {
     console.log("Usuário logado:", user.email);
-    // Busca role do usuário
     const usersSnap = await getDocs(collection(db, 'usuarios'));
     usersSnap.forEach(u => {
       if(u.data().email === user.email) currentUserRole = u.data().role || 'user';
@@ -69,7 +68,6 @@ onAuthStateChanged(auth, async user => {
 // ----------------------
 function initSite() {
   loadVisitas();
-  updateDashboard();
 }
 
 // ----------------------
@@ -116,6 +114,7 @@ visitaForm.addEventListener('submit', async e => {
     nome: visitaForm.nome.value.trim(),
     nascimento: visitaForm.nascimento.value,
     cpf: visitaForm.cpf.value.trim(),
+    telefone: visitaForm.telefone.value.trim(),
     rua: visitaForm.rua.value.trim(),
     bairro: visitaForm.bairro.value.trim(),
     referencia: visitaForm.referencia.value.trim(),
@@ -123,13 +122,16 @@ visitaForm.addEventListener('submit', async e => {
     dificuldades: visitaForm.dificuldades.value.trim(),
     observacoes: visitaForm.observacoes.value.trim(),
     responsavel: visitaForm.responsavel.value.trim(),
+    agenteSaude: visitaForm.agenteSaude.value.trim(),
     dataAgendamentoISO: now.toISOString(),
     dataAgendamento: now.toLocaleDateString('pt-BR'),
     horaAgendamento: now.toLocaleTimeString('pt-BR', {hour12:false}),
     status: 'Agendada',
     responsavelVisita:'',
     parecerVisita:'',
-    dataRealizacao:''
+    dataRealizacao:'',
+    justica: false,
+    parecerTecnico: false
   };
 
   try {
@@ -152,22 +154,29 @@ visitaForm.addEventListener('submit', async e => {
 // CRIAR CARD
 // ----------------------
 function createCard(visita, id){
+  // Verifica se o card já existe para evitar duplicação
+  if(document.getElementById('card-' + id)) return;
+
   const card = document.createElement('div');
   card.className='card';
+  card.id = 'card-' + id; // adiciona ID único
   const statusClass = visita.status === 'Agendada' ? 'status-agendada' : 'status-realizada';
+
   card.innerHTML=`
     <p><strong>${escapeHtml(visita.nome)}</strong></p>
     <p class="muted">${escapeHtml(visita.dataAgendamento)}</p>
     <p class="status-label ${statusClass}">${escapeHtml(visita.status || 'Agendada')}</p>
-    ${visita.parecerTecnico ? '<p class="status-parecer">parecer técnico disponível</p>' : ''}
+    ${visita.parecerTecnico ? '<p class="status-parecer">Parecer técnico disponível</p>' : ''}
   `;
 
-  // Somente admin pode abrir o modal
+  
   if(currentUserRole === 'admin'){
     card.addEventListener('click', () => {
       modalBody.innerHTML=`
         <p><strong>Nome:</strong> ${escapeHtml(visita.nome)}</p>
         <p><strong>Data de Nascimento:</strong> ${escapeHtml(visita.nascimento)}</p>
+        <p><strong>Telefone:</strong> ${escapeHtml(visita.telefone || '-')}</p>
+        <p><strong>Agente de Saúde:</strong> ${escapeHtml(visita.agenteSaude || '-')}</p>
         <p><strong>CPF:</strong> ${escapeHtml(visita.cpf)}</p>
         <p><strong>Endereço:</strong> ${escapeHtml(visita.rua)}, ${escapeHtml(visita.bairro)}</p>
         <p><strong>Ponto de referência:</strong> ${escapeHtml(visita.referencia || '-')}</p>
@@ -182,20 +191,20 @@ function createCard(visita, id){
         ${visita.parecerTecnico ? '<p><strong>Parecer Técnico:</strong> disponível</p>' : ''}
       `;
 
-      // Botões admin
-      let buttonsHtml=`
+      modalButtons.innerHTML = `
         <button class="status-btn">${visita.status==='Agendada'?'Marcar como Realizada':'Marcar como Agendada'}</button>
         <button class="edit-btn">Editar</button>
         <button class="delete-btn">Excluir</button>
         <button class="print-btn">Imprimir</button>
+        <button class="justica-btn" style="background-color:${visita.justica ? 'green':'blue'};">Justiça</button>
+        ${!visita.parecerTecnico ? '<button class="parecer-btn">Marcar Parecer Técnico</button>' : ''}
       `;
+      
 
-      // Apenas se status é Realizada e parecer técnico não existe
-      if(visita.status==='Realizada' && !visita.parecerTecnico){
-        buttonsHtml += `<button class="parecer-btn">Confirmar parecer técnico</button>`;
-      }
-
-      modalButtons.innerHTML = buttonsHtml;
+      modalButtons.style.display = 'flex';
+      modalButtons.style.flexWrap = 'wrap';
+      modalButtons.style.gap = '8px';
+      modalButtons.style.justifyContent = 'center';
 
       // Botão status
       modalButtons.querySelector('.status-btn').onclick = () => {
@@ -210,7 +219,7 @@ function createCard(visita, id){
             responsavelVisita:'',
             parecerVisita:'',
             dataRealizacao:'',
-            parecerTecnico: ''
+            parecerTecnico: false
           }).then(()=> loadVisitas());
         }
       };
@@ -233,7 +242,7 @@ function createCard(visita, id){
         scrollToSection('agendamento');
       };
 
-      // Botão imprimir
+       // Botão imprimir
       modalButtons.querySelector('.print-btn').onclick = () => {
         const { jsPDF } = window.jspdf;
         const docPDF = new jsPDF('p','mm','a4');
@@ -320,6 +329,16 @@ function createCard(visita, id){
         docPDF.save(`${sanitizeFilename(visita.nome)}-formulario-encaminhamento.pdf`);
       };
 
+      // Botão Justiça
+      const justicaBtn = modalButtons.querySelector('.justica-btn');
+      justicaBtn.onclick = async () => {
+        const newStatus = !visita.justica;
+        await updateDoc(doc(db,'visitas',id), { justica: newStatus });
+        visita.justica = newStatus;
+        justicaBtn.style.backgroundColor = newStatus ? 'green' : 'blue';
+        loadVisitas();
+      };
+
       // Botão Parecer Técnico
       const parecerBtn = modalButtons.querySelector('.parecer-btn');
       if(parecerBtn){
@@ -338,67 +357,32 @@ function createCard(visita, id){
   setTimeout(()=>card.classList.add('show'),50);
 }
 
-// ----------------------
-// AUXILIAR DE COMPARAÇÃO PARA ORDENAR VISITAS
-// ----------------------
-function compareVisitas(a, b, recentes = true) {
-  if (a.status === 'Realizada' && b.status !== 'Realizada') return -1;
-  if (a.status !== 'Realizada' && b.status === 'Realizada') return 1;
-
-  if (a.status === 'Realizada' && b.status === 'Realizada') {
-    const dateA = new Date(a.dataRealizacao || a.dataAgendamentoISO || a.dataAgendamento);
-    const dateB = new Date(b.dataRealizacao || b.dataAgendamentoISO || b.dataAgendamento);
-    return recentes ? dateB - dateA : dateA - dateB;
-  }
-
-  const dateA = new Date(a.dataAgendamentoISO || a.dataAgendamento);
-  const dateB = new Date(b.dataAgendamentoISO || b.dataAgendamento);
-  return recentes ? dateB - dateA : dateA - dateB;
-}
 
 // ----------------------
-// CARREGAR VISITAS
-// ----------------------
-async function loadVisitas() {
-  visitasContainer.innerHTML = '';
-  const snap = await getDocs(collection(db, 'visitas'));
-  let visitas = [];
-  snap.forEach(s => visitas.push({ id: s.id, ...s.data() }));
-
-  // Filtro por bairro
-  if (currentFilter) visitas = visitas.filter(v => v.bairro === currentFilter);
-
-  // Filtro por busca
-  if (currentSearch) visitas = visitas.filter(v => v.nome.toLowerCase().includes(currentSearch.toLowerCase()));
-
-  // Ordenação
-  visitas.sort((a, b) => {
-    switch (currentSort) {
-      case 'agendadas-recentes': return new Date(b.dataAgendamentoISO || b.dataAgendamento) - new Date(a.dataAgendamentoISO || a.dataAgendamento);
-      case 'agendadas-antigas': return new Date(a.dataAgendamentoISO || a.dataAgendamento) - new Date(b.dataAgendamentoISO || b.dataAgendamento);
-      case 'realizadas-recentes': return compareVisitas(a, b, true);
-      case 'realizadas-antigas': return compareVisitas(a, b, false);
-      case 'alfabetica': return a.nome.localeCompare(b.nome);
-      default: return 0;
-    }
-  });
-
-  // Cria os cards
-  visitas.forEach(v => createCard(v, v.id));
-}
-
-// ----------------------
-// FILTRO POR BAIRRO
+// FILTRO POR BAIRRO + JUSTIÇA
 // ----------------------
 bairroButtons.forEach(btn => {
   btn.addEventListener('click', () => {
     currentFilter = btn.dataset.bairro || '';
+    currentSearch = searchInput.value.trim(); // mantém busca
     loadVisitas();
   });
 });
 
 // ----------------------
-// BARRA DE BUSCA
+// FILTRO JUSTIÇA
+// ----------------------
+if(justicaFilterBtn){
+  justicaFilterBtn.addEventListener('click', () => {
+    currentFilter = 'justica'; // ativa somente o filtro Justiça
+    currentSearch = ''; // opcional: limpa busca ao filtrar Justiça
+    loadVisitas(); // carrega visitas filtradas
+  });
+}
+
+
+// ----------------------
+// BUSCA
 // ----------------------
 searchInput.addEventListener('input', () => {
   currentSearch = searchInput.value.trim();
@@ -406,14 +390,11 @@ searchInput.addEventListener('input', () => {
 });
 
 // ----------------------
-// MODAL DE STATUS (Marcar como realizada)
+// MODAL STATUS
 // ----------------------
 statusForm.onsubmit = async e => {
   e.preventDefault();
-  if(!responsavelVisitaInput.value.trim()) {
-    alert('Informe o responsável pela visita');
-    return;
-  }
+  if(!responsavelVisitaInput.value.trim()) return alert('Informe o responsável pela visita');
   await updateDoc(doc(db, 'visitas', currentStatusId), {
     status: 'Realizada',
     responsavelVisita: responsavelVisitaInput.value.trim(),
@@ -423,6 +404,45 @@ statusForm.onsubmit = async e => {
   statusModal.classList.remove('show');
   loadVisitas();
 };
+
+// ----------------------
+// CARREGAR VISITAS
+// ----------------------
+async function loadVisitas() {
+  // Limpa todos os cards antes de adicionar novos
+  visitasContainer.innerHTML = '';
+
+  const snap = await getDocs(collection(db, 'visitas'));
+  let visitas = [];
+  snap.forEach(s => visitas.push({ id: s.id, ...s.data() }));
+
+  // Aplicar filtro
+  if(currentFilter){
+    if(currentFilter === 'justica') visitas = visitas.filter(v => v.justica === true);
+    else visitas = visitas.filter(v => v.bairro === currentFilter);
+  }
+
+  // Aplicar busca
+  if(currentSearch){
+    visitas = visitas.filter(v => v.nome.toLowerCase().includes(currentSearch.toLowerCase()));
+  }
+
+  // Aplicar ordenação
+  visitas.sort((a, b) => {
+    switch(currentSort){
+      case 'agendadas-recentes': return new Date(b.dataAgendamentoISO || b.dataAgendamento) - new Date(a.dataAgendamentoISO || a.dataAgendamento);
+      case 'agendadas-antigas': return new Date(a.dataAgendamentoISO || a.dataAgendamento) - new Date(b.dataAgendamentoISO || b.dataAgendamento);
+      case 'realizadas-recentes': return compareVisitas(a,b,true);
+      case 'realizadas-antigas': return compareVisitas(a,b,false);
+      case 'alfabetica': return a.nome.localeCompare(b.nome);
+      default: return 0;
+    }
+  });
+
+  // Criar cards
+  visitas.forEach(v => createCard(v,v.id));
+}
+
 
 // ----------------------
 // UTILITÁRIOS
@@ -435,7 +455,6 @@ function escapeHtml(str){
     .replaceAll('>','&gt;')
     .replaceAll('"','&quot;');
 }
-
 function sanitizeFilename(name){
   return (name||'visita').replace(/[^a-z0-9_\-]/gi,'_');
 }
@@ -443,4 +462,16 @@ function sanitizeFilename(name){
 // ----------------------
 // LOGOUT
 // ----------------------
-logoutBtn.addEventListener('click', () => signOut(auth).then(() => window.location.href='index.html'));
+logoutBtn.addEventListener('click', () => signOut(auth).then(()=> window.location.href='index.html'));
+
+// ----------------------
+// COMPARAR VISITAS PARA ORDENAR
+// ----------------------
+function compareVisitas(a,b,recentes=true){
+  if(a.status==='Realizada' && b.status!=='Realizada') return -1;
+  if(a.status!=='Realizada' && b.status==='Realizada') return 1;
+
+  const dateA = new Date(a.status==='Realizada'? a.dataRealizacao : a.dataAgendamentoISO || a.dataAgendamento);
+  const dateB = new Date(b.status==='Realizada'? b.dataRealizacao : b.dataAgendamentoISO || b.dataAgendamento);
+  return recentes ? dateB - dateA : dateA - dateB;
+}
