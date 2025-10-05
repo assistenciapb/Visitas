@@ -28,29 +28,45 @@
   <section id="agendamento">
     <h2>Agendar Visita</h2>
     <form id="visitaForm">
+      <!-- Primeira linha -->
       <input type="text" name="nome" placeholder="Nome completo" required />
       <input type="text" name="nascimento" placeholder="Data de Nascimento (dd/mm/aaaa)" required id="nascimentoInput" />
+
+      <!-- Segunda linha -->
+      <input type="text" name="telefone" placeholder="Telefone" />
+      <input type="text" name="agenteSaude" placeholder="Agente de Saúde" />
+
+      <!-- Terceira linha -->
       <input type="text" name="cpf" placeholder="CPF" required />
       <input type="text" name="rua" placeholder="Rua" required />
+
+      <!-- Quarta linha -->
       <select name="bairro" required>
         <option value="">Selecione o bairro</option>
         <option value="Zona Rural">Zona Rural</option>
         <option value="Santa Maria">Santa Maria</option>
         <option value="Poeirão">Poeirão</option>
+        <option value="Secretaria">Secretaria</option>
       </select>
       <input type="text" name="referencia" placeholder="Ponto de referência" />
-      <div>
-    <select name="motivo" required>
-      <option value="">Selecione o motivo</option>
-      <option value="Unipessoal">Unipessoal</option>
-      <option value="Exclusão de Familiar">Exclusão de Familiar</option>
-      <option value="Transferência">Transferência</option>
-      <option value="Outros">Outros</option>
-    </select>
-  </div>
+
+      <!-- Quinta linha -->
+      <select name="motivo" required>
+        <option value="">Selecione o motivo</option>
+        <option value="Unipessoal">Unipessoal</option>
+        <option value="Exclusão de Familiar">Exclusão de Familiar</option>
+        <option value="Transferência">Transferência</option>
+        <option value="Outros">Outros</option>
+      </select>
       <input type="text" name="dificuldades" placeholder="Dificuldades apresentadas" />
+
+      <!-- Observações -->
       <textarea name="observacoes" placeholder="Observações"></textarea>
+
+      <!-- Responsável -->
       <input type="text" name="responsavel" placeholder="Responsável pelo agendamento" required />
+
+      <!-- Botão de envio -->
       <div style="text-align:center;">
         <button type="submit"><i class="fas fa-check-circle"></i> Confirmar Agendamento</button>
       </div>
@@ -64,7 +80,7 @@
     <!-- Barra de busca + filtros -->
     <div class="busca-filtros">
       <input type="text" id="searchInput" placeholder="Buscar por nome..." />
-      
+
       <button id="ordenarBtn" class="ordenar-btn">Ordenar</button>
       <div id="ordenarMenu" class="ordenar-menu">
         <div data-sort="agendadas-recentes">Agendadas mais recentes</div>
@@ -75,11 +91,15 @@
       </div>
 
       <div class="filter-buttons">
-        <button class="bairro-btn" data-bairro="Santa Maria">Santa Maria</button>
-        <button class="bairro-btn" data-bairro="Zona Rural">Zona Rural</button>
-        <button class="bairro-btn" data-bairro="Poeirão">Poeirão</button>
-        <button class="bairro-btn" data-bairro="">Todos</button>
-      </div>
+  <button class="bairro-btn" data-bairro="Santa Maria">Santa Maria</button>
+  <button class="bairro-btn" data-bairro="Zona Rural">Zona Rural</button>
+  <button class="bairro-btn" data-bairro="Poeirão">Poeirão</button>
+  <button class="bairro-btn" data-bairro="Secretaria">Secretaria</button>
+  <button class="bairro-btn" data-bairro="">Todos</button>
+  <button class="bairro-btn" id="justicaFilterBtn">Justiça</button>
+</div>
+
+
     </div>
 
     <div id="visitasContainer"></div>
